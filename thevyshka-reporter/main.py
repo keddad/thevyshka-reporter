@@ -4,12 +4,16 @@ import logging
 import sqlite3
 from contextlib import closing
 
-db_name = f"db.db"
+db_name = f"data/db.db"
 all_contents = ['animation', 'audio', 'contact', 'dice', 'document', 'location', 'photo', 'poll', 'sticker', 'text',
                 'venue', 'video', 'video_note', 'voice']
 
+logging_level = logging.WARNING
+if environ.get("DEBUG"):
+    logging_level = logging.DEBUG
+
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging_level
 )
 
 telebot.apihelper.ENABLE_MIDDLEWARE = True
