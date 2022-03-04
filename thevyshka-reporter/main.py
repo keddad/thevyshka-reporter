@@ -59,6 +59,9 @@ def start(message: telebot.types.Message):
 
 @bot.message_handler(commands=["ban"])
 def ban_user(message: telebot.types.Message):
+    if message.chat.id != admin_group_id:
+        return
+
     if not message.reply_to_message:
         bot.reply_to(message, "Чтобы забанить пользователя, ответьте этой командой на его сообщение")
 
@@ -82,6 +85,9 @@ def ban_user(message: telebot.types.Message):
 
 @bot.message_handler(commands=["unban"])
 def unban_user(message: telebot.types.Message):
+    if message.chat.id != admin_group_id:
+        return
+
     if not message.reply_to_message:
         bot.reply_to(message, "Чтобы разбанить пользователя, ответьте этой командой на его сообщение")
 
