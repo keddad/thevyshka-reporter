@@ -13,3 +13,9 @@ services:
       - BOT_TOKEN=
       - ADMIN_CHAT=
       - DEBUG=1
+    logging:
+      options:
+        max-size:
+          "10m"
+        max-file:
+          "3"
