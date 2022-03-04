@@ -29,6 +29,11 @@ def ensure_migrations():
                 CREATE TABLE IF NOT EXISTS messages
                 (from_id integer, message_id integer primary key, forwarded_id integer)
             """)
+
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS fuckers
+                (fucker_id integer primary key)
+            """)
         conn.commit()
 
 
@@ -50,6 +55,59 @@ def register_message(bot_instance, message: telebot.types.Message):
 @bot.message_handler(commands=["start", "help"])
 def start(message: telebot.types.Message):
     bot.send_message(message.chat.id, "Пиши, котик")
+
+
+@bot.message_handler(commands=["ban"])
+def ban_user(message: telebot.types.Message):
+    if not message.reply_to_message:
+        bot.reply_to(message, "Чтобы забанить пользователя, ответьте этой командой на его сообщение")
+
+    with sqlite3.connect(db_name) as conn:
+        with closing(conn.cursor()) as c:
+            c.execute("SELECT * FROM messages WHERE forwarded_id=?", (message.reply_to_message.id,))
+            message_author = c.fetchone()
+
+            if not message_author:
+                logging.warning(f"No message author for {message}")
+                return
+
+            message_author = message_author[0]
+        with closing(conn.cursor()) as c:
+            c.execute("INSERT OR IGNORE INTO fuckers VALUES (?)", (message_author,))
+            logger.debug(f"Banning {message_author}")
+        conn.commit()
+
+    bot.reply_to(message, "Пользователь забанен!")
+
+
+@bot.message_handler(commands=["unban"])
+def unban_user(message: telebot.types.Message):
+    if not message.reply_to_message:
+        bot.reply_to(message, "Чтобы разбанить пользователя, ответьте этой командой на его сообщение")
+
+    with sqlite3.connect(db_name) as conn:
+        with closing(conn.cursor()) as c:
+            c.execute("SELECT * FROM messages WHERE forwarded_id=?", (message.reply_to_message.id,))
+            message_author = c.fetchone()
+
+            if not message_author:
+                logging.warning(f"No message author for {message}")
+                return
+
+            message_author = message_author[0]
+
+        with closing(conn.cursor()) as c:
+            c.execute("SELECT * FROM fuckers WHERE fucker_id=?", (message_author,))
+            res = c.fetchone()
+
+            if res:
+                logging.debug(f"Removing {res} from fuckers")
+                c.execute("DELETE FROM fuckers WHERE fucker_id=?", (message_author,))
+            else:
+                logging.warning(f"Unbanning not banned user {message_author}")
+        conn.commit()
+
+    bot.reply_to(message, "Пользователь разбанен!")
 
 
 @bot.message_handler(func=lambda m: m.chat.id == admin_group_id, content_types=all_contents)
@@ -74,6 +132,15 @@ def respond_from_admin(message: telebot.types.Message):
 
 @bot.message_handler(func=lambda m: m.chat.id != admin_group_id, content_types=all_contents)
 def forward_to_admin(message: telebot.types.Message):
+    with sqlite3.connect(db_name) as conn:
+        with closing(conn.cursor()) as c:
+            c.execute("SELECT * FROM fuckers WHERE fucker_id=?", (message.from_user.id,))
+            res = c.fetchone()
+
+            if res:
+                logging.info(f"Ignoring message from banned user {message.from_user.id}")
+                return
+
     forwarded_message = bot.forward_message(admin_group_id, message.chat.id, message.id)
     with sqlite3.connect(db_name) as conn:
         with closing(conn.cursor()) as c:
